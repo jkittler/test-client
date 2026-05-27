@@ -9,12 +9,9 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.slf4j.LoggerFactory
-import java.security.cert.X509Certificate
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.X509TrustManager
 
 /**
  * Thin OkHttp WebSocket wrapper. Transport only — no protocol logic.
@@ -36,22 +33,8 @@ class WsClient(private val url: String, private val trustAllCerts: Boolean = fal
         .pingInterval(20, TimeUnit.SECONDS)
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS) // no read timeout for long-lived WS
-        .apply { if (trustAllCerts) applyTrustAll(this) }
+        .apply { if (trustAllCerts) Tls.applyTrustAll(this) }
         .build()
-
-    // Dev-only: accept the server's self-signed cert. Never use against production.
-    private fun applyTrustAll(b: OkHttpClient.Builder) {
-        val trustAll = object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?) {}
-            override fun checkServerTrusted(chain: Array<X509Certificate>?, authType: String?) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-        }
-        val ctx = SSLContext.getInstance("TLS").apply {
-            init(null, arrayOf(trustAll), java.security.SecureRandom())
-        }
-        b.sslSocketFactory(ctx.socketFactory, trustAll)
-        b.hostnameVerifier { _, _ -> true }
-    }
 
     fun connect() {
         log.info("Connecting to {} (trustAllCerts={})", url, trustAllCerts)

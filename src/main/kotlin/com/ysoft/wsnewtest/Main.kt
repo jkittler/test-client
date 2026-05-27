@@ -20,8 +20,13 @@ fun main(args: Array<String>) {
         exitProcess(Exit.CONFIG)
     }
 
+    val jwtSource = when {
+        cfg.jwt != null -> "configured"
+        cfg.login.enabled -> "auto-login"
+        else -> "none"
+    }
     log.info("wsnew test client -> {} (step={}, useHmac={}, jwt={}, sendRemoteDelivery={})",
-        cfg.wsUrl, step.cliName, cfg.useHmac, cfg.jwt != null, cfg.sendRemoteDelivery)
+        cfg.wsUrl, step.cliName, cfg.useHmac, jwtSource, cfg.sendRemoteDelivery)
     log.debug(cfg.describe())
 
     val ws = WsClient(cfg.wsUrl, trustAllCerts = cfg.trustAllCerts)

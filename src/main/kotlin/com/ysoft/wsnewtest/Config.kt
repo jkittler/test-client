@@ -19,6 +19,7 @@ data class ClientConfig(
     val accountDomain: String,
     val apiKey: String,
     val jwt: String?,
+    val login: LoginConfig,
     val sendRemoteDelivery: Boolean,
     val rd: RemoteDeliveryConfig,
 ) {
@@ -31,6 +32,7 @@ data class ClientConfig(
         |  protocolVersion=$protocolVersion applicationName=$applicationName
         |  uuid=$uuid accountDomain=$accountDomain
         |  useHmac=$useHmac apiKey=${apiKey.masked()} jwt=${jwt.masked()}
+        |  login: enabled=${login.enabled} ${login.userId}@${login.host}:${login.port} apiKey=${login.apiKey.masked()}
         |  sendRemoteDelivery=$sendRemoteDelivery
         |  remoteDelivery: targetHost=${rd.targetHost} targetActorPath=${rd.targetActorPath} providerId=${rd.providerId}
         |                  document.uuid=${rd.documentUuid} document.name=${rd.documentName}
@@ -43,6 +45,16 @@ data class ClientConfig(
         val documentUuid: String,
         val documentName: String,
         val inputPortName: String,
+    )
+
+    /** Auto-login: fetch a fresh JWT from the public API instead of pasting one. */
+    data class LoginConfig(
+        val enabled: Boolean,
+        val host: String,
+        val port: Int,
+        val userId: String,
+        val password: String,
+        val apiKey: String,
     )
 
     companion object {
@@ -64,6 +76,21 @@ data class ClientConfig(
                 return v
             }
 
+            val accountDomain = reqStr("accountDomain")
+            val handshakeApiKey =
+                if (c.getBoolean("useHmac")) reqStr("apiKey") else c.getString("apiKey")
+
+            val login = c.getConfig("login")
+            val loginCfg = LoginConfig(
+                enabled = login.getBoolean("enabled"),
+                // host/apiKey fall back to the handshake values when left blank
+                host = login.getString("host").ifBlank { accountDomain },
+                port = login.getInt("port"),
+                userId = login.getString("userId"),
+                password = login.getString("password"),
+                apiKey = login.getString("apiKey").ifBlank { handshakeApiKey },
+            )
+
             val rd = c.getConfig("remoteDelivery")
             return ClientConfig(
                 host = c.getString("host"),
@@ -76,9 +103,10 @@ data class ClientConfig(
                 useHmac = c.getBoolean("useHmac"),
                 helloTimeoutSeconds = c.getLong("helloTimeoutSeconds"),
                 uuid = reqStr("uuid"),
-                accountDomain = reqStr("accountDomain"),
-                apiKey = if (c.getBoolean("useHmac")) reqStr("apiKey") else c.getString("apiKey"),
+                accountDomain = accountDomain,
+                apiKey = handshakeApiKey,
                 jwt = c.getString("jwt").ifBlank { null },
+                login = loginCfg,
                 sendRemoteDelivery = c.getBoolean("sendRemoteDelivery"),
                 rd = RemoteDeliveryConfig(
                     targetHost = rd.getString("targetHost"),

@@ -291,6 +291,15 @@ Tested against a running HCP (customer `testcustomer.localhost.nip.io`, user
   (`new_request_to_primary`, `is_response=false`, ask pattern), so this is a
   server-side routing nuance to investigate, not a client defect.
 
+## Auto-login (JWT convenience)
+
+Because user tokens expire ~1h, pasting a `jwt` is tedious. The client supports
+a `login` config block: with `jwt` blank and `login.enabled=true`, it fetches a
+fresh token from `GET /api/v1/login` (`Login.kt`, shared trust-all TLS via
+`Tls.kt`) right before `InitiateUserSession`. `login.host` defaults to
+`accountDomain`, `login.apiKey` to `wsnew.apiKey`. A literal `jwt` still
+overrides. (`./run.sh token` remains for writing a token into the config once.)
+
 ## Implementation notes / learnings
 
 - **TLS, not plaintext.** First connection attempts to `ws://localhost:2563/wsnew`

@@ -156,10 +156,18 @@ class Flow(private val cfg: ClientConfig, private val ws: WsClient) {
     // ---- step 3: user session ----
 
     fun session(): SessionOutcome {
-        val jwt = cfg.jwt
-        if (jwt == null) {
-            log.info("No JWT configured; skipping InitiateUserSession")
-            return SessionOutcome.Skipped
+        // Use a configured jwt if present; otherwise auto-login (no manual token needed).
+        val jwt = cfg.jwt ?: run {
+            if (!cfg.login.enabled) {
+                log.info("No JWT configured and login disabled; skipping InitiateUserSession")
+                return SessionOutcome.Skipped
+            }
+            try {
+                Login.fetchAccessToken(cfg.login, cfg.trustAllCerts)
+            } catch (e: Exception) {
+                log.error("Auto-login failed: {}", e.message)
+                return SessionOutcome.Error(e.message ?: "auto-login failed")
+            }
         }
         val (reqId, env) = Envelopes.initiateUserSession(cfg, jwt)
         log.info("-> InitiateUserSession requestId={} jwt={}", reqId, jwt.masked())

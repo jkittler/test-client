@@ -51,7 +51,19 @@ cp application.local.conf.example application.local.conf
 ```
 
 Key fields: `host`, `port` (2563), `tls`/`trustAllCerts` (keep true for dev),
-`uuid`, `accountDomain`, `useHmac` + `apiKey`, `jwt`, `sendRemoteDelivery`.
+`uuid`, `accountDomain`, `useHmac` + `apiKey`, `jwt` + `login`, `sendRemoteDelivery`.
+
+### Getting a user token (JWT)
+
+The session/adddoc/full steps need a user JWT. There are three ways, easiest first:
+
+1. **Auto-login (recommended).** Leave `jwt = ""` and set `login.enabled = true`
+   with `userId`/`password`. The client logs in to the public API
+   (`/api/v1/login`) and fetches a fresh token automatically before
+   `InitiateUserSession` — nothing to paste, and it never expires on you.
+   `login.host` defaults to `accountDomain`, `login.apiKey` to `wsnew.apiKey`.
+2. **`./run.sh token`** writes a fresh token into `application.local.conf` once.
+3. **Paste a literal** `jwt = "eyJ..."` to pin a specific token (overrides auto-login).
 
 ## Build & run
 
@@ -80,14 +92,16 @@ summaries). Exit codes: `0` clean, `1` config error, `2` connect error,
   WS listener on port 2563.
 - For the HMAC path: an account whose domain matches `accountDomain` and one of
   its active API keys (or the bootstrap key).
-- For the user-session path: a JWT for a user in that account.
+- For the user-session path: a user in that account (the client auto-logs-in to
+  fetch the JWT — see "Getting a user token" above).
 
 ## Quick manual verification
 
 1. `useHmac = false` → expect `HelloServer accepted=true` (escape hatch).
 2. Set `useHmac = true` + a valid `apiKey` → expect `accepted=true`; corrupt the
    key → expect `accepted=false` and exit 3.
-3. Set `jwt` → expect `InitiateUserSessionResponse cookie=…`.
+3. Enable `login` (or set `jwt`) and run `session` → expect
+   `Obtained access_token` then `InitiateUserSessionResponse cookie=…`.
 4. With the client connected, POST to the POC trigger
    `.../local-print-ws/print/{documentId}/{outputPortId}` for a document whose
    `storageDetails.primaryStorageUuid` equals this client's `uuid` → expect a
@@ -119,12 +133,3 @@ from a branch that contains `LocalPrintWebSocketServerNettyIO` so 2563 serves
 Note: the local-print WS listener does **SNI-based per-account routing** — connect
 using the customer domain (e.g. `testcustomer.localhost.nip.io`), not `localhost`,
 so the server presents the account's cert and routes correctly.
-
-## Getting a user JWT (for InitiateUserSession)
-
-```sh
-curl -k -s "https://<account-domain>:7300/api/v1/login?authtype=0&userid=<user>&password=<pass>" \
-  -H "X-API-Key: dev-api-key" | jq -r .token.access_token
-```
-
-Put the `access_token` into `wsnew.jwt` in `application.local.conf`.

@@ -32,10 +32,19 @@ wsnew {
   useHmac = false
   apiKey = "dev-api-key"
 
-  # --- optional user session (JWT) ---
-  # Leave blank to skip InitiateUserSession. Otherwise a JWT for a user in the
-  # account above (e.g. obtained by logging in as test / Testing12345).
+  # --- user session (JWT) ---
+  # Easiest: leave jwt blank and enable login below — the client fetches a fresh
+  # token automatically before InitiateUserSession (tokens expire ~1h).
+  # Set jwt explicitly only to override auto-login with a specific token.
   jwt = ""
+  login {
+    enabled = true
+    host = ""                 # default: accountDomain
+    port = 7300
+    userId = "test"
+    password = "Testing12345"
+    apiKey = ""               # default: wsnew.apiKey (dev-api-key)
+  }
 
   # --- optional client->server RemoteDelivery (AddDocument) ---
   sendRemoteDelivery = false
