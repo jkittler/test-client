@@ -57,13 +57,21 @@ Key fields: `host`, `port` (2563), `tls`/`trustAllCerts` (keep true for dev),
 
 ```sh
 ./gradlew build                 # compile + run HMAC unit test
-./gradlew run                   # run against the configured server
-# or a clean binary:
-./gradlew installDist && ./build/install/wsnew-test-client/bin/wsnew-test-client
+./gradlew installDist           # build a launchable binary
+BIN=./build/install/wsnew-test-client/bin/wsnew-test-client
+
+# Run cumulative phases — each stops after the named step (great for debugging):
+$BIN connect     # just open the TLS WebSocket
+$BIN hello       # + HelloClient/HelloServer
+$BIN session     # + InitiateUserSession (needs jwt)
+$BIN adddoc      # + RemoteDelivery/AddDocument, then drain for the reaction
+$BIN listen      # + stay connected, print inbound PrintLocalDocument
+$BIN             # full (= hello -> session -> [adddoc if configured] -> listen)
 ```
 
-Set `WSNEW_LOG_LEVEL=DEBUG` for verbose logging. Exit codes: `0` clean, `1`
-config error, `2` connect error, `3` rejected by server, `4` hello timeout.
+Set `WSNEW_LOG_LEVEL=DEBUG` for verbose logging (per-frame hex + envelope
+summaries). Exit codes: `0` clean, `1` config error, `2` connect error,
+`3` rejected by server, `4` hello timeout.
 
 ## Prerequisites
 

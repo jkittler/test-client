@@ -61,8 +61,23 @@ message R_PrintLocalDocument {
 // here incrementally, driven by server parse errors, until AddDocument is accepted.
 
 message R_Document {
-  optional string uuid = 1;
-  optional string name = 2;
+  // Nested enums + field numbers copied verbatim from db/document.proto so the
+  // wire format matches. Only the server's required fields are declared here.
+  enum R_DocumentType {
+    UNKNOWN = 0; PDF = 1; PS = 2; PCLXL = 3; HTML = 4; DOCUMENT = 5;
+    SHEET = 6; SLIDE = 7; TEXT = 8; XPS = 9; IMAGE = 10; ZIP = 11;
+  }
+  enum R_DocumentStatus {
+    READY = 0; PRINTED = 1; DELETED = 2; EXPIRED = 3; FAILED = 4; RECEIVED = 5;
+    AWAITING_CONVERSION = 6; CONVERTING = 7; CONVERSION_FAILED = 8; STORED = 9;
+    DELETING = 10; READY_FOR_DOWNLOAD = 11; DOWNLOADED = 12;
+  }
+  required string           documentId     = 1;
+  required string           documentName   = 2;
+  required R_DocumentType    documentType   = 3;
+  required R_DocumentStatus  documentStatus = 6;
+  required string           inputPortName  = 7;
+  required int64            createdDate    = 8;
 }
 
 message R_AddDocumentRequest {

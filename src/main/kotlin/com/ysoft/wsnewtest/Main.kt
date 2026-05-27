@@ -3,8 +3,15 @@ package com.ysoft.wsnewtest
 import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
 
-fun main() {
+fun main(args: Array<String>) {
     val log = LoggerFactory.getLogger("com.ysoft.wsnewtest.Main")
+
+    val stepArg = args.firstOrNull { !it.startsWith("-") }
+    val step = Step.parse(stepArg)
+    if (step == null) {
+        log.error("Unknown step '{}'. Valid steps: {}", stepArg, Step.names())
+        exitProcess(Exit.CONFIG)
+    }
 
     val cfg = try {
         ClientConfig.load()
@@ -13,8 +20,8 @@ fun main() {
         exitProcess(Exit.CONFIG)
     }
 
-    log.info("wsnew test client -> {} (useHmac={}, jwt={}, sendRemoteDelivery={})",
-        cfg.wsUrl, cfg.useHmac, cfg.jwt != null, cfg.sendRemoteDelivery)
+    log.info("wsnew test client -> {} (step={}, useHmac={}, jwt={}, sendRemoteDelivery={})",
+        cfg.wsUrl, step.cliName, cfg.useHmac, cfg.jwt != null, cfg.sendRemoteDelivery)
     log.debug(cfg.describe())
 
     val ws = WsClient(cfg.wsUrl, trustAllCerts = cfg.trustAllCerts)
@@ -27,7 +34,7 @@ fun main() {
     })
 
     val code = try {
-        flow.run()
+        flow.runUpTo(step)
     } catch (e: Exception) {
         log.error("Unexpected error", e)
         Exit.CONNECT

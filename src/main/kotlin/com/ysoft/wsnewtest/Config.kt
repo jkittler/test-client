@@ -42,6 +42,7 @@ data class ClientConfig(
         val providerId: Int,
         val documentUuid: String,
         val documentName: String,
+        val inputPortName: String,
     )
 
     companion object {
@@ -85,6 +86,7 @@ data class ClientConfig(
                     providerId = rd.getInt("providerId"),
                     documentUuid = rd.getString("document.uuid"),
                     documentName = rd.getString("document.name"),
+                    inputPortName = rd.getString("document.inputPortName"),
                 ),
             )
         }

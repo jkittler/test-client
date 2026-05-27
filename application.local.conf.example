@@ -40,12 +40,14 @@ wsnew {
   # --- optional client->server RemoteDelivery (AddDocument) ---
   sendRemoteDelivery = false
   remoteDelivery {
-    targetHost = "primary"
-    targetActorPath = "/user/appMain"
+    # PRIMARY_UUID (server virtualMasterUuid); empty targetActorPath == request to primary.
+    targetHost = "00000008-0008-0008-0008-000000000008"
+    targetActorPath = ""
     providerId = 1
     document {
       uuid = "11111111-1111-1111-1111-111111111111"
       name = "wsnew-test.pdf"
+      inputPortName = "test-input"
     }
   }
 }

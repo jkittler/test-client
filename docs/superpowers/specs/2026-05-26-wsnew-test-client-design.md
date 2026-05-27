@@ -261,6 +261,36 @@ implementation by reading the server routing and/or observing logs.
 - CA pinning / proper cert validation — dev uses `trustAllCerts`. Loading the
   real account CA could be added later.
 
+## Verified against live HCP (2026-05-27)
+
+Tested against a running HCP (customer `testcustomer.localhost.nip.io`, user
+`test`). Results, leg by leg:
+
+- **Path:** the running server build predates commit `ed2e64c` ("WS upgradepath"),
+  so its LocalPrint/HelloHandler pipeline is bound at **`/ws`** on 2563, not
+  `/wsnew`. The server log confirmed: `/wsnew` → request *discarded*; `/ws` →
+  `LocalPrint WebSocket handshake complete` + `HelloHandler` starts. Set
+  `path = "/ws"` for this build; `/wsnew` once the server is rebuilt.
+- **TLS + SNI:** must connect with the customer domain (per-account cert routing).
+- **HMAC handshake:** this build *requires* HMAC (no escape hatch — it rejects
+  with "missing HMAC fields"). With `useHmac=true` + `apiKey="dev-api-key"` (the
+  bootstrap key): `HMAC matched one of 2 candidate key(s)` → **accepted=true**.
+- **Session:** JWT from `:7300/api/v1/login` → `User session initiated for test`
+  → session **cookie** returned.
+- **AddDocument:** `R_Document` needs 6 required fields (`documentId`,
+  `documentName`, `documentType` enum, `documentStatus` enum, `inputPortName`,
+  `createdDate`) — added to `envelope_min.proto`. `RemoteDelivery.targetHost`
+  must be a UUID = `PRIMARY_UUID` (`00000008-0008-0008-0008-000000000008`) and
+  `targetActorPath` must be empty (else parsed as a full Akka path). With those,
+  the server fully deserialized the message, `injecting authenticated
+  EventContext for AddDocument (providerId=7)`, `Local delivery: AddDocumentMsg`.
+- **Open item (server-side):** the server then logs `Response delivery actor path
+  is empty! RemoteDelivery messages are only delivered to arbitrary actors if
+  it's a response!` (disposition `LocalFromLocalNoResponseDeliveryActor`). The
+  client sends the same wire shape as the real Rust client
+  (`new_request_to_primary`, `is_response=false`, ask pattern), so this is a
+  server-side routing nuance to investigate, not a client defect.
+
 ## Implementation notes / learnings
 
 - **TLS, not plaintext.** First connection attempts to `ws://localhost:2563/wsnew`

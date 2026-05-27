@@ -35,8 +35,12 @@ object Envelopes {
 
     fun remoteDeliveryAddDocument(cfg: ClientConfig, sessionCookie: String?): Wsnew.R_Envelope {
         val doc = Wsnew.R_Document.newBuilder()
-            .setUuid(cfg.rd.documentUuid)
-            .setName(cfg.rd.documentName)
+            .setDocumentId(cfg.rd.documentUuid)
+            .setDocumentName(cfg.rd.documentName)
+            .setDocumentType(Wsnew.R_Document.R_DocumentType.PDF)
+            .setDocumentStatus(Wsnew.R_Document.R_DocumentStatus.STORED)
+            .setInputPortName(cfg.rd.inputPortName)
+            .setCreatedDate(System.currentTimeMillis())
             .build()
         val add = Wsnew.R_AddDocumentRequest.newBuilder()
             .setProviderId(cfg.rd.providerId)
