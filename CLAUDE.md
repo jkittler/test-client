@@ -71,19 +71,40 @@ The session/adddoc/full steps need a user JWT. There are three ways, easiest fir
 ./gradlew build                 # compile + run HMAC unit test
 ./gradlew installDist           # build a launchable binary
 BIN=./build/install/wsnew-test-client/bin/wsnew-test-client
-
-# Run cumulative phases — each stops after the named step (great for debugging):
-$BIN connect     # just open the TLS WebSocket
-$BIN hello       # + HelloClient/HelloServer
-$BIN session     # + InitiateUserSession (needs jwt)
-$BIN adddoc      # + RemoteDelivery/AddDocument, then drain for the reaction
-$BIN listen      # + stay connected, print inbound PrintLocalDocument
-$BIN             # full (= hello -> session -> [adddoc if configured] -> listen)
+# (or use ./run.sh <step>, which builds on demand)
 ```
 
-Set `WSNEW_LOG_LEVEL=DEBUG` for verbose logging (per-frame hex + envelope
-summaries). Exit codes: `0` clean, `1` config error, `2` connect error,
-`3` rejected by server, `4` hello timeout.
+**The steps are one ordered pipeline.** They always run in this sequence:
+
+```
+connect → hello → session → adddoc → listen
+```
+
+Each command runs every earlier phase first, then **stops after the step you
+name** — so you walk the protocol one stage further each time (handy for
+debugging where it breaks):
+
+```sh
+$BIN connect     # 1. open the TLS WebSocket, then stop
+$BIN hello       # 1-2. + HelloClient/HelloServer, then stop
+$BIN session     # 1-3. + InitiateUserSession (auto-login/jwt), then stop
+$BIN adddoc      # 1-4. + RemoteDelivery/AddDocument, drain for reaction, then stop
+$BIN listen      # 1-5. + stay connected, print inbound PrintLocalDocument
+```
+
+**Run the whole pipeline at once** (connect → hello → session → adddoc(if
+`sendRemoteDelivery=true`) → listen) with the `full` step, which is also the
+default when you pass no argument:
+
+```sh
+$BIN full        # the entire flow in one run
+$BIN             # same thing (full is the default)
+./run.sh         # same, via the wrapper (builds first if needed)
+```
+
+Set `WSNEW_LOG_LEVEL=DEBUG` (or `./run.sh <step> --debug`) for verbose logging
+(per-frame hex + envelope summaries). Exit codes: `0` clean, `1` config error,
+`2` connect error, `3` rejected by server, `4` hello timeout.
 
 ## Prerequisites
 
