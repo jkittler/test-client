@@ -15,6 +15,7 @@ fun main() {
 
     log.info("wsnew test client -> {} (useHmac={}, jwt={}, sendRemoteDelivery={})",
         cfg.wsUrl, cfg.useHmac, cfg.jwt != null, cfg.sendRemoteDelivery)
+    log.debug(cfg.describe())
 
     val ws = WsClient(cfg.wsUrl, trustAllCerts = cfg.trustAllCerts)
     val flow = Flow(cfg, ws)

@@ -24,6 +24,7 @@ class Flow(private val cfg: ClientConfig, private val ws: WsClient) {
     fun stop() { running = false }
 
     fun run(): Int {
+        log.debug("Flow start: connecting and awaiting WS open (timeout {}s)", cfg.helloTimeoutSeconds)
         ws.connect()
 
         // 1. wait for socket open (or immediate failure)
@@ -50,6 +51,11 @@ class Flow(private val cfg: ClientConfig, private val ws: WsClient) {
         log.info("<- HelloServer accepted={} serverUuid={}{}",
             hello.connectionAccepted, hello.uuid,
             if (!hello.connectionAccepted) " rejectionReason=\"${hello.rejectionReason}\"" else "")
+        log.debug("   HelloServer fields: uuid={} accepted={} hasSinglePort={} rejectionReason={}",
+            if (hello.hasUuid()) hello.uuid else "<none>",
+            hello.connectionAccepted,
+            if (hello.hasHasSinglePort()) hello.hasSinglePort else "<none>",
+            if (hello.hasRejectionReason()) "\"${hello.rejectionReason}\"" else "<none>")
         if (!hello.connectionAccepted) return Exit.REJECTED
 
         // 3. (optional) user session
@@ -124,8 +130,10 @@ class Flow(private val cfg: ClientConfig, private val ws: WsClient) {
                 log.info("<- (late) InitiateUserSessionResponse requestId={}", inbound.msg.requestId)
             is Envelopes.Inbound.Other ->
                 log.info("<- envelope contentType={} (no handler)", inbound.envelope.contentTypeCase)
-            is Envelopes.Inbound.Undecodable ->
+            is Envelopes.Inbound.Undecodable -> {
                 log.warn("<- undecodable frame ({} bytes): {}", inbound.bytes.size, inbound.error.message)
+                log.warn("   hex: {}", Hex.preview(inbound.bytes))
+            }
         }
     }
 

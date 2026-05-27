@@ -24,6 +24,18 @@ data class ClientConfig(
 ) {
     val wsUrl: String get() = "${if (tls) "wss" else "ws"}://$host:$port$path"
 
+    /** Multi-line, secret-masked dump for DEBUG logging. */
+    fun describe(): String = """
+        |resolved config:
+        |  wsUrl=$wsUrl  tls=$tls trustAllCerts=$trustAllCerts helloTimeoutSeconds=$helloTimeoutSeconds
+        |  protocolVersion=$protocolVersion applicationName=$applicationName
+        |  uuid=$uuid accountDomain=$accountDomain
+        |  useHmac=$useHmac apiKey=${apiKey.masked()} jwt=${jwt.masked()}
+        |  sendRemoteDelivery=$sendRemoteDelivery
+        |  remoteDelivery: targetHost=${rd.targetHost} targetActorPath=${rd.targetActorPath} providerId=${rd.providerId}
+        |                  document.uuid=${rd.documentUuid} document.name=${rd.documentName}
+    """.trimMargin()
+
     data class RemoteDeliveryConfig(
         val targetHost: String,
         val targetActorPath: String,

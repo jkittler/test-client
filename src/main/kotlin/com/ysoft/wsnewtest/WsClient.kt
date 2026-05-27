@@ -54,34 +54,60 @@ class WsClient(private val url: String, private val trustAllCerts: Boolean = fal
     }
 
     fun connect() {
+        log.info("Connecting to {} (trustAllCerts={})", url, trustAllCerts)
         val req = Request.Builder().url(url).build()
         ws = http.newWebSocket(req, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 log.info("WS open: HTTP {} {}", response.code, response.message)
+                if (log.isDebugEnabled) {
+                    log.debug("Upgrade response headers:")
+                    response.headers.forEach { (n, v) -> log.debug("    {}: {}", n, v) }
+                }
                 inbound.put(Event.Open)
             }
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                inbound.put(Event.Message(Envelopes.parse(bytes.toByteArray())))
+                val arr = bytes.toByteArray()
+                val parsed = Envelopes.parse(arr)
+                if (log.isDebugEnabled) {
+                    val desc = (parsed as? Envelopes.Inbound.Other)?.let { Envelopes.summarize(it.envelope) }
+                        ?: parsed::class.simpleName
+                    log.debug("<- frame {} bytes [{}]", arr.size, desc)
+                    log.debug("   hex: {}", Hex.preview(arr))
+                }
+                inbound.put(Event.Message(parsed))
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                log.warn("Unexpected TEXT frame ({} chars), ignoring", text.length)
+                log.warn("Unexpected TEXT frame ({} chars): {}", text.length, text.take(200))
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                log.debug("onClosing code={} reason=\"{}\"", code, reason)
                 webSocket.close(code, reason)
                 inbound.put(Event.Closed(code, reason))
             }
 
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                log.debug("onClosed code={} reason=\"{}\"", code, reason)
+            }
+
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                log.debug("onFailure: {} (response={})", t.toString(),
+                    response?.let { "HTTP ${it.code} ${it.message}" } ?: "none")
                 inbound.put(Event.Failed(t, response))
             }
         })
     }
 
     fun send(envelope: Wsnew.R_Envelope) {
-        ws.send(envelope.toByteArray().toByteString())
+        val bytes = envelope.toByteArray()
+        if (log.isDebugEnabled) {
+            log.debug("-> frame {} bytes [{}]", bytes.size, Envelopes.summarize(envelope))
+            log.debug("   hex: {}", Hex.preview(bytes))
+        }
+        val ok = ws.send(bytes.toByteString())
+        if (!ok) log.warn("ws.send returned false (message not enqueued; socket closing/closed)")
     }
 
     /** Wait for the next event up to [timeoutSeconds], or null on timeout. */

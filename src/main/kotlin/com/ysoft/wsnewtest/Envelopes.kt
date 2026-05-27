@@ -63,6 +63,46 @@ object Envelopes {
         data class Undecodable(val bytes: ByteArray, val error: Exception) : Inbound
     }
 
+    /** One-line human-readable summary of an envelope, for DEBUG logging. */
+    fun summarize(env: Wsnew.R_Envelope): String = buildString {
+        append("Envelope(v=").append(env.protocolVersion)
+        append(", app=").append(env.applicationName)
+        append(", ").append(env.contentTypeCase)
+        when (env.contentTypeCase) {
+            Wsnew.R_Envelope.ContentTypeCase.HELLOCLIENT -> {
+                val h = env.helloClient
+                append(" uuid=").append(h.uuid)
+                append(" domain=").append(h.accountDomain)
+                append(" hmac=").append(if (h.hasHmacSignature()) h.hmacSignature.masked(8) else "<none>")
+                append(" ts=").append(if (h.hasTimestamp()) h.timestamp else "<none>")
+            }
+            Wsnew.R_Envelope.ContentTypeCase.HELLOSERVER -> {
+                val h = env.helloServer
+                append(" accepted=").append(h.connectionAccepted)
+                append(" serverUuid=").append(h.uuid)
+                if (h.hasRejectionReason()) append(" reject=\"").append(h.rejectionReason).append("\"")
+            }
+            Wsnew.R_Envelope.ContentTypeCase.INITIATEUSERSESSION ->
+                append(" requestId=").append(env.initiateUserSession.requestId)
+            Wsnew.R_Envelope.ContentTypeCase.INITIATEUSERSESSIONRESPONSE -> {
+                val r = env.initiateUserSessionResponse
+                append(" requestId=").append(r.requestId)
+                append(if (r.hasSessionCookie()) " cookie=${r.sessionCookie.masked()}" else " error=\"${r.errorMessage}\"")
+            }
+            Wsnew.R_Envelope.ContentTypeCase.PRINTLOCALDOCUMENT -> {
+                val p = env.printLocalDocument
+                append(" docId=").append(p.documentId).append(" portId=").append(p.outputPortId)
+            }
+            Wsnew.R_Envelope.ContentTypeCase.REMOTEDELIVERY -> {
+                val rd = env.remoteDelivery
+                append(" target=").append(rd.targetActorPath)
+                append(" cookie=").append(if (rd.hasUserSessionCookie()) rd.userSessionCookie.masked() else "<none>")
+            }
+            else -> {}
+        }
+        append(")")
+    }
+
     fun parse(bytes: ByteArray): Inbound =
         try {
             val env = Wsnew.R_Envelope.parseFrom(bytes)
