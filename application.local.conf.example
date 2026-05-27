@@ -1,0 +1,51 @@
+# Example override config for the wsnew test client.
+#
+# Copy this to `application.local.conf` (which is gitignored) and adjust the
+# values for your environment. Anything you set here overrides the defaults
+# baked into src/main/resources/application.conf.
+#
+#   cp application.local.conf.example application.local.conf
+#   ./gradlew run
+
+wsnew {
+  # --- connection ---
+  host = "localhost"
+  port = 2563
+  path = "/wsnew"
+  # The HCP server binds the local-print WS listener with TLS (TcpServer
+  # withTLS=true), so this must be true. trustAllCerts accepts the dev
+  # self-signed / per-account cert (CN=<account>.localhost.nip.io).
+  tls = true
+  trustAllCerts = true
+  helloTimeoutSeconds = 18
+
+  # --- identity ---
+  # Any UUID. For receiving PrintLocalDocument the server matches this against
+  # a document's storageDetails.primaryStorageUuid.
+  uuid = "b35b45c4-bd06-4820-8fbe-bde04de86a94"
+  # Customer/account domain you created in HCP.
+  accountDomain = "testcustomer.localhost.nip.io"
+
+  # --- handshake auth ---
+  # useHmac=false uses the POC escape hatch (no signature). Set true and provide
+  # an active account API key (or bootstrap key) to exercise the real HMAC path.
+  useHmac = false
+  apiKey = "dev-api-key"
+
+  # --- optional user session (JWT) ---
+  # Leave blank to skip InitiateUserSession. Otherwise a JWT for a user in the
+  # account above (e.g. obtained by logging in as test / Testing12345).
+  jwt = ""
+
+  # --- optional client->server RemoteDelivery (AddDocument) ---
+  sendRemoteDelivery = false
+  remoteDelivery {
+    targetHost = "primary"
+    targetActorPath = "/user/appMain"
+    providerId = 1
+    document {
+      uuid = "11111111-1111-1111-1111-111111111111"
+      name = "wsnew-test.pdf"
+    }
+  }
+}

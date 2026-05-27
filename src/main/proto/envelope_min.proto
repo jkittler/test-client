@@ -1,0 +1,107 @@
+syntax = "proto2";
+
+// Minimal, wire-compatible subset of the HCP server's envelope.proto.
+// Field numbers and types MUST match the server (DomainCommons/.../envelope.proto,
+// remoting.proto, remoteinterface/dbchanneling.proto). Proto wire format is
+// field-number based, so this subset interoperates without copying the full
+// transitive import closure.
+package com.ysoft.wsnewtest.proto;
+
+option java_package = "com.ysoft.wsnewtest.proto";
+option java_outer_classname = "Wsnew";
+
+// ---- leaf messages ----
+
+message R_OutputPort {
+  optional int32  id   = 1;
+  optional string name = 2;
+}
+
+message R_HelloClient {
+  optional string uuid           = 1;
+  optional string timestamp      = 3;
+  optional string hmac_signature = 4;
+  optional string account_domain = 5;
+}
+
+message R_HelloServer {
+  optional string uuid               = 1;
+  optional bool   connectionAccepted = 2;
+  optional bool   hasSinglePort      = 4;
+  optional string rejectionReason    = 6;
+}
+
+message R_InitiateUserSession {
+  optional string requestId = 1;
+  optional string userToken = 2;
+}
+
+message R_InitiateUserSessionResponse {
+  optional string requestId = 1;
+  oneof response {
+    string sessionCookie = 2;
+    string errorMessage  = 3;
+  }
+}
+
+message R_LocalJobStored {
+  optional string document_id   = 1;
+  optional string document_name = 2;
+  optional int32  input_port_id = 3;
+}
+
+message R_PrintLocalDocument {
+  optional string       document_id    = 1;
+  optional int32        output_port_id = 2;
+  optional R_OutputPort output_port    = 3;
+}
+
+// ---- RemoteDelivery -> MidLevelRequest -> AddDocument subtree ----
+// Minimal R_Document stub; the real one has more required fields. Add fields
+// here incrementally, driven by server parse errors, until AddDocument is accepted.
+
+message R_Document {
+  optional string uuid = 1;
+  optional string name = 2;
+}
+
+message R_AddDocumentRequest {
+  required int32      providerId = 1;
+  required R_Document document   = 2;
+}
+
+message R_MidLevelRequest {
+  oneof requestType {
+    R_AddDocumentRequest addDocument = 602;
+  }
+}
+
+message R_RemoteDeliveryMessage {
+  oneof messageType {
+    R_MidLevelRequest midLevelRequest = 100;
+  }
+}
+
+message R_RemoteDelivery {
+  required R_RemoteDeliveryMessage message           = 1;
+  required string                  targetHost        = 2;
+  required string                  targetActorPath   = 3;
+  required bool                    isResponse        = 6;
+  optional string                  userSessionCookie = 9;
+}
+
+// ---- top-level envelope ----
+
+message R_Envelope {
+  required int32  protocolVersion = 1;
+  required string applicationName = 2;
+  oneof contentType {
+    R_RemoteDelivery              remoteDelivery              = 4;
+    R_InitiateUserSession         initiateUserSession         = 9;
+    R_InitiateUserSessionResponse initiateUserSessionResponse = 11;
+    R_HelloClient                 helloClient                 = 12;
+    R_HelloServer                 helloServer                 = 13;
+    R_LocalJobStored              localJobStored              = 14;
+    R_PrintLocalDocument          printLocalDocument          = 15;
+  }
+}

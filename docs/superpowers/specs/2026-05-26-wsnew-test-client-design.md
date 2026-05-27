@@ -30,6 +30,13 @@ build coupling to `main_project`.
 
 - Endpoint path: `/wsnew` (`NettyIO.WebSocketUpgradePathNew`).
 - Default port: `2563` (`OperationPrefs.DefaultLocalPrintWebSocketPortValue`).
+- **TLS is required.** The server binds the local-print WS listener with
+  `withTLS = true` (`TcpServer.scala:104`), so the client must use `wss://`,
+  NOT `ws://`. (This corrects the original draft of this spec, which assumed
+  plaintext `ws://`.) The dev server presents a per-account self-signed cert
+  (e.g. `CN=test.localhost.nip.io`, issued by "Intermediate CA for account N"),
+  so the client trusts all certs in dev (`trustAllCerts`). No client cert /
+  mTLS is required (verified with `openssl s_client`).
 - Frames are binary, each carrying a serialized `R_Envelope`
   (`LocalPrintWebSocketServerNettyIO`).
 - Envelope `protocolVersion = 1`, server's own `applicationName = "HCP Server"`
@@ -136,7 +143,8 @@ switch to the compiled-jar fallback above.
 ## Data flow
 
 1. Load config (defaults + `application.local.conf`).
-2. Open `ws://${host}:${port}${path}` (default `ws://localhost:2563/wsnew`).
+2. Open `wss://${host}:${port}${path}` (default `wss://localhost:2563/wsnew`),
+   trusting all certs in dev.
 3. Build & send `HelloClient`:
    - `useHmac=true` (default): set `timestamp = Instant.now()` (ISO-8601 UTC) and
      `hmac_signature`.
@@ -188,6 +196,8 @@ wsnew {
   host = "localhost"
   port = 2563
   path = "/wsnew"
+  tls = true                 # server listener is withTLS=true -> wss://
+  trustAllCerts = true       # accept dev self-signed per-account cert
   protocolVersion = 1
   applicationName = "wsnew-test-client"
   useHmac = true
@@ -195,6 +205,9 @@ wsnew {
   sendRemoteDelivery = false
 }
 ```
+
+A committed `application.local.conf.example` documents every override field;
+copy it to the gitignored `application.local.conf` and edit for your env.
 
 ### `application.local.conf` (gitignored, user-owned)
 ```hocon
@@ -245,5 +258,17 @@ implementation by reading the server routing and/or observing logs.
 - Heartbeats (server doesn't require them on `/wsnew`).
 - `TerminateUserSession` (rely on disconnect).
 - A full faithful `R_Document` (only fields the server requires for `AddDocument`).
-- TLS / `wss://` (plain `ws://` against local dev server; can add later via OkHttp
-  TLS config).
+- CA pinning / proper cert validation — dev uses `trustAllCerts`. Loading the
+  real account CA could be added later.
+
+## Implementation notes / learnings
+
+- **TLS, not plaintext.** First connection attempts to `ws://localhost:2563/wsnew`
+  failed with `unexpected end of stream` (server closed immediately). The server
+  binds the listener with `withTLS=true`, so `wss://` + a trust-all
+  `SSLSocketFactory` is required in dev. The client gained `tls` /
+  `trustAllCerts` config flags and a TLS-enabled OkHttp client.
+- OkHttp's `EventListener` does **not** fire for the WebSocket upgrade call
+  (OkHttp swaps in `EventListener.NONE`), so connection diagnostics must come
+  from `WebSocketListener` callbacks or external tools (`openssl s_client`,
+  `curl --http1.1 -H "Upgrade: websocket" ...`).

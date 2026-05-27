@@ -1,0 +1,12 @@
+.gradle/
+build/
+application.local.conf
+*.log
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
